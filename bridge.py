@@ -14,8 +14,8 @@ class Message:
 
     def compare(self, other, current_closest_to_root):
         cond1 = (other.root < self.root)
-        cond2 = (other.root == self.root and other.d+1 < self.d)
-        cond3 = (other.root == self.root and other.d+1 == self.d and other.bridge_id < current_closest_to_root)
+        cond2 = (other.root == self.root and other.d < self.d)
+        cond3 = (other.root == self.root and other.d == self.d and other.bridge_id < current_closest_to_root)
         if cond1 or cond2 or cond3:
             return 1
         else:
@@ -38,7 +38,7 @@ class LAN:
         for message in self.to_forward:
             for bridge_id in self.bridge_dict.keys():
                 if bridge_id != message.bridge_id:
-                    to_return[bridge_id].append(message)
+                    to_return[bridge_id].append(copy.copy(message))
                     empty = False
 
         # empty queue
@@ -63,75 +63,76 @@ class Bridge:
 
     def add_port(self, port_name, port_type='DP'):
         self.port_dict[port_name] = port_type
+        self.current_best_on_port[port_name] = None
 
-    def reset_ports(self):
-        for port_name in self.port_dict.keys():
-            self.port_dict[port_name] = 'DP'
+    def update_port_local_best(self, port, message):
+        if self.current_best_on_port[port] is None or self.current_best_on_port[port].compare(message, self.current_best_on_port[port].bridge_id):
+            self.current_best_on_port[port] = copy.copy(message)
 
     def update_best(self, m):
         self.root_prediction = m.root
         self.distance_from_root = m.d+1
         self.closest_to_root_bridge = m.bridge_id
-        self.reset_ports()
-        self.port_dict[m.port] = 'RP'
-        print("***Updated bridge {} with message {}***".format(self.id, m))
-        self.current_overall_best = copy.copy(m)
-
-
-    # def update_using_message(self, m):
-
-    #     # declaring a port as null port
-    #     elif self.root_prediction == m.root:
-    #         if self.distance_from_root > m.d+1 or (self.distance_from_root == m.d+1 and self.id > m.bridge_id):
-    #             self.port_dict[m.port] = 'NP'
+        # print("***Updating bridge {} with message {}***".format(self.id, m))
+        self.current_overall_best = Message(self.id, self.root_prediction, self.distance_from_root, -1)
 
     def time_step(self, t):
         
         to_return = {k: [] for k in self.port_dict.keys()}
         empty = True
+        new_best = False
+        # print("On BRIDGE", self.id, self.received_messages)
         
         # update own config with messages
         for message in self.received_messages:
             p = message.port
+            self.update_port_local_best(p, message)
+            message.d += 1
             if self.current_overall_best.compare(message, self.closest_to_root_bridge):
+                message.d -= 1
                 self.update_best(message)
-            if p not in self.current_best_on_port.keys() or self.current_best_on_port[p].compare(message, self.closest_to_root_bridge):
-                self.current_best_on_port[p] = copy.copy(message)
+                new_best = True
             
         # forward
-        is_db = {k: False for k in self.port_dict.keys()}
-        not_db = {k: False for k in self.port_dict.keys()}
-
-        for message in self.received_messages:
-            for port_name, port_type in self.port_dict.items():
-                if port_name != message.port and port_type != 'RP':
-                    if port_name not in self.current_best_on_port.keys() or self.current_best_on_port[port_name].compare(message, self.closest_to_root_bridge):
-                        new_message = copy.copy(message)
-                        new_message.port = port_name
-                        new_message.d += 1
-                        new_message.bridge_id = self.id
-                        to_return[port_name].append(new_message)
-                        is_db[port_name] = True
-                        not_db[port_name] = False
-                        empty = False
-                    else:
-                        not_db[port_name] = True
-                        is_db[port_name] = False
-                        # print("Bridge {} forwarded message {} on port {}".format(self.id, new_message, port_name))                        
-        for port in is_db.keys():
-            if self.port_dict[port] == 'RP':
-                continue
-            if is_db[port]:
+        for port, port_type in self.port_dict.items():
+            to_forward = Message(self.id, self.root_prediction, self.distance_from_root, port)
+            cur_best = self.current_best_on_port[port]
+            if cur_best is not None:
+                rp_cond = self.root_prediction == cur_best.root and \
+                            self.distance_from_root-1 == cur_best.d and \
+                            self.closest_to_root_bridge == cur_best.bridge_id
+                np_cond = (self.root_prediction == cur_best.root and \
+                            self.distance_from_root-1 == cur_best.d and \
+                            self.closest_to_root_bridge < cur_best.bridge_id) or \
+                            (self.root_prediction == cur_best.root and \
+                            self.distance_from_root == cur_best.d and \
+                            self.id > cur_best.bridge_id)
+            else:
+                rp_cond = False
+                np_cond = False
+            
+            dp_cond = cur_best is None or cur_best.compare(to_forward, self.id)
+            # DP
+            if dp_cond:
+                # print('bridge id:', self.id, self.current_best_on_port)
+                # print("Forwarding message [{}] on port {}".format(to_forward, port))
+                if new_best:
+                    to_return[port].append(to_forward)
+                self.current_best_on_port[port] = to_forward
                 self.port_dict[port] = 'DP'
-            if not_db[port]:
+            # RP
+            elif rp_cond:
+                self.port_dict[port] = 'RP'
+            elif np_cond:
                 self.port_dict[port] = 'NP'
 
         # generate own config if root       
-        if self.root_prediction == self.id and t == 0:
-            print('Generating config message: {}'.format(self.id))
+        if self.root_prediction == self.id and t <= 0:
+            # print('Generating config message: {}'.format(self.id))
             for port_name in self.port_dict.keys():
                 m = Message(self.id, self.id, 0, port_name)
                 to_return[port_name].append(m)
+                self.update_port_local_best(port_name, m)
                 empty = False
         
         # empty the queue
@@ -145,6 +146,12 @@ class Bridge:
         s += 'Bridge id: {}\n'.format(self.id)
         s += 'Root Pred: {} and Dist from root: {}\n'.format(self.root_prediction, self.distance_from_root)
         s += 'Port Dict: {}'.format(self.port_dict)
+        return s
+
+    def pretty_print(self):
+        s = self.id + ': '
+        for port_name in sorted(self.port_dict.keys()):
+            s += "{}-{} ".format(port_name, self.port_dict[port_name])
         return s
 
 
@@ -192,10 +199,10 @@ class Topology:
 
     def __repr__(self):
 
-        s = '\n***Topology***\n\n'
-        for bridge_id, bridge in self.bridge_dict.items():
-            s += bridge.__repr__() + '\n'
-        return s
+        s = ''
+        for bridge_id in sorted(self.bridge_dict.keys()):
+            s += self.bridge_dict[bridge_id].pretty_print() + '\n'
+        return s[:-1] # remove last newline
 
 
 
@@ -221,22 +228,24 @@ def spanning_tree(topology, trace):
     # first generate all config messages
     # message format: (self.id, id of node it considers as root, distance from root, port)  
     t = 0
-    while 1:        
-        print('\n', t, '\n')
+    while 1:
         to_stop = topology.time_step(t)
-        if t == 5:
+        if to_stop or t > 2*len(topology.bridge_dict):
             break
         t += 1
     print(topology)
 
 
-s = """1
-5
+s = """0
+8
 B1: A G B
 B2: G F
 B3: B C
 B4: C F E
-B5: C D E"""
+B5: C D E
+B6: F E H
+B7: H D
+B8: B"""
 
 top, trace = construct_topology(s)
 spanning_tree(top, trace)
