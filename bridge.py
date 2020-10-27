@@ -281,31 +281,35 @@ def message_transfer(topology, trace, input_str):
                 #print(receiver_lan.name)
         sending_lans = []
         #print(sender)
-        message_send(topology, sender_lan, receiver_lan, sender, sending_lans)
+        message_send(topology, sender_lan, receiver_lan, sender, sending_lans, receiver)
         for k in top.bridge_dict.keys():
             print(k+":")
             print("HOST ID | FORWARDING PORT")
             for l in sorted(top.bridge_dict[k].forwarding_table.keys()):
                 print(l, "|", top.bridge_dict[k].forwarding_table[l])
 
-def message_send(topology, sender_lan, receiver_lan, sender, sending_lans):
+def message_send(topology, sender_lan, receiver_lan, sender, sending_lans, receiver):
     sending_bridges = []
-    sending_lans.append(sender_lan)
     sending_lans.append(sender_lan.name)
     for i in topology.lan_dict[sender_lan.name].bridge_dict.keys():
         if(topology.bridge_dict[i].port_dict[sender_lan.name] != 'NP'):
             sending_bridges.append(topology.bridge_dict[i])
+    
     for i in sending_bridges:
         if sender not in i.forwarding_table.keys():
             i.forwarding_table[sender] = sender_lan.name
-        if receiver_lan.name not in i.forwarding_table.keys():
+
+        if receiver not in i.forwarding_table.keys():
             for j in (topology.bridge_dict[i.id].port_dict.keys()):
                 if(topology.bridge_dict[i.id].port_dict[j]!='NP'):
                     if j not in sending_lans:
                         sender_lan2 = topology.lan_dict[j]
-                        message_send(topology, sender_lan2, receiver_lan, sender, sending_lans)
+                        message_send(topology, sender_lan2, receiver_lan, sender, sending_lans, receiver)
         else:
-            message_send(topology, i.forwarding_table[receiver_lan.name], receiver_lan, sender, sender_lan)
+            sender_lan2 = topology.lan_dict[i.forwarding_table[receiver]]
+            if(sender_lan2.name not in sending_lans):
+            # print(sender_lan2.name)
+                message_send(topology, sender_lan2, receiver_lan, sender, sending_lans, receiver)
     return
 
 
