@@ -5,6 +5,7 @@ class Message:
 
     def __init__(self, b_id, root, d, port):
         self.bridge_id = b_id
+        #B2->B1, bridge_id = B2
         self.root = root
         self.d = d
         self.port = port
@@ -26,8 +27,11 @@ class LAN:
 
     def __init__(self, name):
         self.name = name
+        self.host_list = []
         self.bridge_dict = {}
+        #brides_id, designated port or not
         self.to_forward = []
+        #forwards to all bridges except source, stores messages
     
     def add_bridge(self, bridge_id, is_dp=0):
         self.bridge_dict[bridge_id] = is_dp
@@ -52,6 +56,8 @@ class Bridge:
     def __init__ (self, bridge_id):
         self.id = bridge_id
         self.port_dict = {}
+        #key - port name, value - DP/RP/NP
+        self.forwarding_table = {}
         
         self.root_prediction = self.id
         self.distance_from_root = 0
@@ -79,6 +85,7 @@ class Bridge:
     def time_step(self, t):
         
         to_return = {k: [] for k in self.port_dict.keys()}
+        #lan segment instead of bridge as key
         empty = True
         new_best = False
         # print("On BRIDGE", self.id, self.received_messages)
@@ -170,6 +177,12 @@ class Topology:
                 self.lan_dict[port_name] = LAN(port_name)
             self.lan_dict[port_name].add_bridge(bridge.id)
 
+    def add_hosts(self, lan_seg, host_list):
+        for port_name in self.lan_dict.keys():
+            if port_name==lan_seg:
+                self.lan_dict[port_name].host_list = host_list 
+
+
     def time_step(self, t):
 
         lan_messages = []
@@ -222,6 +235,16 @@ def construct_topology(input_str):
 
         topology.add_bridge(bridge_instance)
 
+    num_lan = 7
+    for i in range(num_lan):
+        lan_seg, host_list = data[i+num_bridges+2].split(':')
+        host_list = host_list.split(' ')[1:]
+        #print(lan_seg, host_list)
+        topology.add_hosts(lan_seg, host_list)
+
+    #for i in topology.lan_dict.keys():
+        #print(i, topology.lan_dict[i].host_list)
+
     return topology, trace
 
 def spanning_tree(topology, trace):
@@ -235,17 +258,79 @@ def spanning_tree(topology, trace):
         t += 1
     print(topology)
 
+def message_transfer(topology, trace, input_str):
+    data = [x.strip() for x in input_str.split('\n')]
+    num_bridges = int(data[1])
+    num_lan = 7
+    transfer_index = 2+num_lan+num_bridges
+    num_tranfers = int(data[transfer_index])
+    
+    for i in range(num_tranfers):
+        sender = data[transfer_index+i+1].split(' ')[0]
+        receiver = data[transfer_index+i+1].split(' ')[1]
+        
+        #finding out the sender lan
+        for i in topology.lan_dict.keys():
+            if sender in topology.lan_dict[i].host_list:
+                sender_lan = topology.lan_dict[i]
+                #print(sender_lan.name)
+        for i in topology.lan_dict.keys():
+            if receiver in topology.lan_dict[i].host_list:
+                receiver_lan = topology.lan_dict[i]
+                #print(receiver_lan.name)
+        sending_lans = []
+        message_send(topology, sender_lan, receiver_lan, sender, sending_lans)
 
-s = """0
-8
+def message_send(topology, sender_lan, receiver_lan, sender, sending_lans):
+    if(sender_lan==receiver_lan):
+        return
+    sending_bridges = []
+    sending_lans.append(sender_lan)
+    sending_lans.append(sender_lan.name)
+    for i in topology.lan_dict[sender_lan.name].bridge_dict.keys():
+        if(topology.bridge_dict[i].port_dict[sender_lan.name] != 'NP'):
+            sending_bridges.append(topology.bridge_dict[i])
+    for i in sending_bridges:
+        if sender not in i.forwarding_table.keys():
+            i.forwarding_table[sender] = sender_lan.name
+        for j in (topology.bridge_dict[i.id].port_dict.keys()):
+            if(topology.bridge_dict[i.id].port_dict[j]!='NP'):
+                if j not in sending_lans:
+                    sender_lan2 = topology.lan_dict[j]
+                    message_send(topology, sender_lan2, receiver_lan, sender, sending_lans)
+    return
+
+
+
+
+
+
+
+s = """1
+5
 B1: A G B
 B2: G F
 B3: B C
 B4: C F E
 B5: C D E
-B6: F E H
-B7: H D
-B8: B"""
+A: H1 H2 H3
+B: H4 H5
+C: H6 H7 H8
+D: H9 H10 
+E: H11
+F: H12 H13
+G: H14
+2
+H9 H2
+H4 H12
+H3 H9
+"""
 
 top, trace = construct_topology(s)
 spanning_tree(top, trace)
+message_transfer(top, trace, s)
+# for i in top.lan_dict.keys():
+#     print(i, top.lan_dict[i].bridge_dict.keys())
+for i in top.bridge_dict.keys():
+    print(i, top.bridge_dict[i].forwarding_table)
+
