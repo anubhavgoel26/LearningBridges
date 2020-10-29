@@ -287,6 +287,7 @@ def message_transfer(topology, trace, input_str):
             print("HOST ID | FORWARDING PORT")
             for l in sorted(top.bridge_dict[k].forwarding_table.keys()):
                 print(l, "|", top.bridge_dict[k].forwarding_table[l])
+            print("")
 
 def message_send(topology, sender_lan, receiver_lan, sender, sending_lans, receiver):
     sending_bridges = []
