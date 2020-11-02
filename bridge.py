@@ -240,4 +240,3 @@ def message_send(topology, sender_lan, receiver_lan, sender, sending_lans, recei
             if(sender_lan2.name not in sending_lans):
             # print(sender_lan2.name)
                 message_send(topology, sender_lan2, receiver_lan, sender, sending_lans, receiver)
-    return
