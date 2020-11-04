@@ -164,7 +164,7 @@ class Bridge:
         s = self.id + ': '
         for port_name in sorted(self.port_dict.keys()):
             s += "{}-{} ".format(port_name, self.port_dict[port_name])
-        return s
+        return s[:-1]
 
 
 class Topology:
