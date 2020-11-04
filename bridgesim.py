@@ -7,7 +7,7 @@ def construct_topology(input_str):
     topology = Topology()
     data = [x.strip() for x in input_str.split('\n')]
     lan_segs = set()
-    trace = bool(data[0])
+    trace = int(data[0])
     num_bridges = int(data[1])
 
     for i in range(num_bridges):
