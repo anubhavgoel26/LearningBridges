@@ -82,7 +82,7 @@ class Bridge:
         # print("***Updating bridge {} with message {}***".format(self.id, m))
         self.current_overall_best = Message(self.id, self.root_prediction, self.distance_from_root, -1)
 
-    def time_step(self, t):
+    def time_step(self, t, trace):
         
         to_return = {k: [] for k in self.port_dict.keys()}
         #lan segment instead of bridge as key
@@ -98,7 +98,10 @@ class Bridge:
             if self.current_overall_best.compare(message, self.closest_to_root_bridge):
                 message.d -= 1
                 self.update_best(message)
+                message.d += 1
                 new_best = True
+            if trace:
+                print("{} r {} ({} {} {})".format(t, self.id, message.root, message.d-1, message.bridge_id))
             
         # forward
         for port, port_type in self.port_dict.items():
@@ -125,6 +128,8 @@ class Bridge:
                 # print("Forwarding message [{}] on port {}".format(to_forward, port))
                 if new_best:
                     to_return[port].append(to_forward)
+                    if trace:
+                        print("{} s {} ({} {} {})".format(t, self.id, to_forward.root, to_forward.d, to_forward.bridge_id))
                 self.current_best_on_port[port] = to_forward
                 self.port_dict[port] = 'DP'
             # RP
@@ -183,12 +188,12 @@ class Topology:
                 self.lan_dict[port_name].host_list = host_list 
 
 
-    def time_step(self, t):
+    def time_step(self, t, trace):
 
         lan_messages = []
         stop = True
         for bridge in self.bridge_dict.values():
-            m, empty = bridge.time_step(t)
+            m, empty = bridge.time_step(t, trace)
             lan_messages.append(m)
             if not empty:
                 stop = False
