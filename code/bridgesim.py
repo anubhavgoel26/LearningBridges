@@ -3,12 +3,11 @@ import sys
 
 
 def construct_topology(input_str):
-    #function for creating an internal representation of a topology given some input
 
     topology = Topology()
     data = [x.strip() for x in input_str.split('\n')]
     lan_segs = set()
-    trace = int(data[0])
+    trace = bool(data[0])
     num_bridges = int(data[1])
 
     for i in range(num_bridges):
@@ -35,22 +34,19 @@ def spanning_tree(topology, trace):
     # message format: (self.id, id of node it considers as root, distance from root, port)  
     t = 0
     while 1:
-        to_stop = topology.time_step(t, trace)
+        to_stop = topology.time_step(t)
         if to_stop or t > 2*len(topology.bridge_dict):
             break
         t += 1
     print(topology)
 
 def message_transfer(topology, trace, input_str):
-    #this function figures out which is the concerned lan for the sending and receiving hosts
     data = [x.strip() for x in input_str.split('\n')]
-    trace = int(data[0])
-    t = 0
     num_bridges = int(data[1])
     num_lan = len(topology.lan_dict)
     transfer_index = 2+num_lan+num_bridges
     num_tranfers = int(data[transfer_index])
-    s = ""
+    #print(num_tranfers)
     
     for i in range(num_tranfers):
         sender = data[transfer_index+i+1].split(' ')[0]
@@ -67,21 +63,39 @@ def message_transfer(topology, trace, input_str):
                 #print(receiver_lan.name)
         sending_lans = []
         #print(sender)
-        message_send(topology, sender_lan, receiver_lan, sender, sending_lans, receiver, t, trace)
-        #once the lans have been figured out, the message send function is called
-        
-        #code for printing forwarding table entries after every transmission
+        message_send(topology, sender_lan, receiver_lan, sender, sending_lans, receiver)
         for k in top.bridge_dict.keys():
-            s += k+":\n"
-            s += "HOST ID | FORWARDING PORT\n"
+            print(k+":")
+            print("HOST ID | FORWARDING PORT")
             for l in sorted(top.bridge_dict[k].forwarding_table.keys()):
-                s += "{} | {}\n".format(l, top.bridge_dict[k].forwarding_table[l])
-        s += "\n"
-
-    
-    print(s[:-1])
+                print(l, "|", top.bridge_dict[k].forwarding_table[l])
+            print("")
 
 
+
+# s = """0
+# 7
+# B1: A G B
+# B2: G F
+# B3: B C
+# B4: C F E
+# B5: C D E
+# B6: F E H
+# B7: H D
+# A: H1 H2
+# B: H3 H4
+# C: H5
+# D: H6
+# E: H7
+# F: H8 H9 H10
+# G: H11 H12
+# H: H13 H14
+# 4
+# H1 H2
+# H9 H2
+# H4 H12
+# H3 H9
+# """
 
 s = sys.stdin.readlines()
 s = ''.join(s)

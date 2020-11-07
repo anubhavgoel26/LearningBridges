@@ -2,7 +2,6 @@ import time
 import copy
 
 class Message:
-    #class definition for a config message for spanning tree algorithm
 
     def __init__(self, b_id, root, d, port):
         self.bridge_id = b_id
@@ -25,7 +24,6 @@ class Message:
 
 
 class LAN:
-    #class used for creating an internal representation of a LAN segment
 
     def __init__(self, name):
         self.name = name
@@ -54,7 +52,6 @@ class LAN:
         return to_return, empty
 
 class Bridge:
-    #class for creating an internal representation of a bridge
 
     def __init__ (self, bridge_id):
         self.id = bridge_id
@@ -85,7 +82,7 @@ class Bridge:
         # print("***Updating bridge {} with message {}***".format(self.id, m))
         self.current_overall_best = Message(self.id, self.root_prediction, self.distance_from_root, -1)
 
-    def time_step(self, t, trace):
+    def time_step(self, t):
         
         to_return = {k: [] for k in self.port_dict.keys()}
         #lan segment instead of bridge as key
@@ -101,10 +98,7 @@ class Bridge:
             if self.current_overall_best.compare(message, self.closest_to_root_bridge):
                 message.d -= 1
                 self.update_best(message)
-                message.d += 1
                 new_best = True
-            if trace:
-                print("{} r {} ({} {} {})".format(t, self.id, message.root, message.d-1, message.bridge_id))
             
         # forward
         for port, port_type in self.port_dict.items():
@@ -131,8 +125,6 @@ class Bridge:
                 # print("Forwarding message [{}] on port {}".format(to_forward, port))
                 if new_best:
                     to_return[port].append(to_forward)
-                    if trace:
-                        print("{} s {} ({} {} {})".format(t, self.id, to_forward.root, to_forward.d, to_forward.bridge_id))
                 self.current_best_on_port[port] = to_forward
                 self.port_dict[port] = 'DP'
             # RP
@@ -167,17 +159,13 @@ class Bridge:
         s = self.id + ': '
         for port_name in sorted(self.port_dict.keys()):
             s += "{}-{} ".format(port_name, self.port_dict[port_name])
-        return s[:-1]
+        return s
 
 
 class Topology:
-    #class for creating an internal representation of a topology
-
     def __init__ (self):
         self.bridge_dict = {}
-        #maintains a list of lans connected to each bridge
         self.lan_dict = {}
-        #maintains a list of bridges associated with a LAN
 
         self.pending_messages = []
 
@@ -195,12 +183,12 @@ class Topology:
                 self.lan_dict[port_name].host_list = host_list 
 
 
-    def time_step(self, t, trace):
+    def time_step(self, t):
 
         lan_messages = []
         stop = True
         for bridge in self.bridge_dict.values():
-            m, empty = bridge.time_step(t, trace)
+            m, empty = bridge.time_step(t)
             lan_messages.append(m)
             if not empty:
                 stop = False
@@ -230,11 +218,8 @@ class Topology:
         return s[:-1] # remove last newline
 
 
-def message_send(topology, sender_lan, receiver_lan, sender, sending_lans, receiver, t, trace):
-    #transfers messages from a sender lan to next hop, recursively called on all hops
-
+def message_send(topology, sender_lan, receiver_lan, sender, sending_lans, receiver):
     sending_bridges = []
-    #maintain all the next hops that the message has to be sent to
     sending_lans.append(sender_lan.name)
     for i in topology.lan_dict[sender_lan.name].bridge_dict.keys():
         if(topology.bridge_dict[i].port_dict[sender_lan.name] != 'NP'):
@@ -249,10 +234,10 @@ def message_send(topology, sender_lan, receiver_lan, sender, sending_lans, recei
                 if(topology.bridge_dict[i.id].port_dict[j]!='NP'):
                     if j not in sending_lans:
                         sender_lan2 = topology.lan_dict[j]
-                        message_send(topology, sender_lan2, receiver_lan, sender, sending_lans, receiver, t+1, trace)
+                        message_send(topology, sender_lan2, receiver_lan, sender, sending_lans, receiver)
         else:
-            #case where receiver is already in the forwarding table
             sender_lan2 = topology.lan_dict[i.forwarding_table[receiver]]
             if(sender_lan2.name not in sending_lans):
             # print(sender_lan2.name)
-                message_send(topology, sender_lan2, receiver_lan, sender, sending_lans, receiver, t+1, trace)
+                message_send(topology, sender_lan2, receiver_lan, sender, sending_lans, receiver)
+    return
