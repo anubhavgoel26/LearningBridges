@@ -1,15 +1,15 @@
 from bridge import *
 import sys
 
-
+#function for creating an internal representation of the topology from input string
 def construct_topology(input_str):
-
     topology = Topology()
     data = [x.strip() for x in input_str.split('\n')]
+    # store LAN segs
     lan_segs = set()
     trace = int(data[0])
     num_bridges = int(data[1])
-
+    # add bridges and corresponding ports
     for i in range(num_bridges):
         bridge_id, port_list = data[i+2].split(':')
         bridge_instance = Bridge(bridge_id)
@@ -20,7 +20,7 @@ def construct_topology(input_str):
             lan_segs.add(port_list[j])
 
         topology.add_bridge(bridge_instance)
-
+    # add hosts
     num_lan = len(lan_segs)
     for i in range(num_lan):
         lan_seg, host_list = data[i+num_bridges+2].split(':')
@@ -30,17 +30,18 @@ def construct_topology(input_str):
     return topology, trace
 
 def spanning_tree(topology, trace):
-    # first generate all config messages
-    # message format: (self.id, id of node it considers as root, distance from root, port)  
     t = 0
     while 1:
+        # to stop is False if algo has converged and no more messages to forward
         to_stop = topology.time_step(t, trace)
+        # we also stop if algo somehow doesn't converge by setting an upper limit on time
         if to_stop or t > 2*len(topology.bridge_dict):
             break
         t += 1
     print(topology)
 
 def message_transfer(topology, trace, input_str):
+    #this function figures out which is the concerned lan for the sending and receiving hosts
     data = [x.strip() for x in input_str.split('\n')]
     trace = int(data[0])
     t = 0
@@ -66,42 +67,21 @@ def message_transfer(topology, trace, input_str):
         sending_lans = []
         #print(sender)
         message_send(topology, sender_lan, receiver_lan, sender, sending_lans, receiver, t, trace)
+        #once the lans have been figured out, the message send function is called
         
+        #code for printing forwarding table entries after every transmission
         for k in top.bridge_dict.keys():
             s += k+":\n"
             s += "HOST ID | FORWARDING PORT\n"
             for l in sorted(top.bridge_dict[k].forwarding_table.keys()):
                 s += "{} | {}\n".format(l, top.bridge_dict[k].forwarding_table[l])
         s += "\n"
+
     
     print(s[:-1])
 
 
-
-# s = """0
-# 7
-# B1: A G B
-# B2: G F
-# B3: B C
-# B4: C F E
-# B5: C D E
-# B6: F E H
-# B7: H D
-# A: H1 H2
-# B: H3 H4
-# C: H5
-# D: H6
-# E: H7
-# F: H8 H9 H10
-# G: H11 H12
-# H: H13 H14
-# 4
-# H1 H2
-# H9 H2
-# H4 H12
-# H3 H9
-# """
-
+# read input and run algo
 s = sys.stdin.readlines()
 s = ''.join(s)
 top, trace = construct_topology(s)
