@@ -5,7 +5,6 @@ class Message:
 
     def __init__(self, b_id, root, d, port):
         self.bridge_id = b_id
-        #B2->B1, bridge_id = B2
         self.root = root
         self.d = d
         self.port = port
@@ -223,7 +222,7 @@ class Topology:
         return s[:-1] # remove last newline
 
 
-def message_send(topology, sender_lan, receiver_lan, sender, sending_lans, receiver):
+def message_send(topology, sender_lan, receiver_lan, sender, sending_lans, receiver, t, trace):
     sending_bridges = []
     sending_lans.append(sender_lan.name)
     for i in topology.lan_dict[sender_lan.name].bridge_dict.keys():
@@ -239,9 +238,9 @@ def message_send(topology, sender_lan, receiver_lan, sender, sending_lans, recei
                 if(topology.bridge_dict[i.id].port_dict[j]!='NP'):
                     if j not in sending_lans:
                         sender_lan2 = topology.lan_dict[j]
-                        message_send(topology, sender_lan2, receiver_lan, sender, sending_lans, receiver)
+                        message_send(topology, sender_lan2, receiver_lan, sender, sending_lans, receiver, t+1, trace)
         else:
             sender_lan2 = topology.lan_dict[i.forwarding_table[receiver]]
             if(sender_lan2.name not in sending_lans):
             # print(sender_lan2.name)
-                message_send(topology, sender_lan2, receiver_lan, sender, sending_lans, receiver)
+                message_send(topology, sender_lan2, receiver_lan, sender, sending_lans, receiver, t+1, trace)

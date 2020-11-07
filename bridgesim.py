@@ -42,6 +42,8 @@ def spanning_tree(topology, trace):
 
 def message_transfer(topology, trace, input_str):
     data = [x.strip() for x in input_str.split('\n')]
+    trace = int(data[0])
+    t = 0
     num_bridges = int(data[1])
     num_lan = len(topology.lan_dict)
     transfer_index = 2+num_lan+num_bridges
@@ -63,7 +65,7 @@ def message_transfer(topology, trace, input_str):
                 #print(receiver_lan.name)
         sending_lans = []
         #print(sender)
-        message_send(topology, sender_lan, receiver_lan, sender, sending_lans, receiver)
+        message_send(topology, sender_lan, receiver_lan, sender, sending_lans, receiver, t, trace)
         
         for k in top.bridge_dict.keys():
             s += k+":\n"
