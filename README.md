@@ -3,7 +3,7 @@
 <br>
 <br>
 
-# File Structure
+## File Structure
 
 Contains 2 files:
 
