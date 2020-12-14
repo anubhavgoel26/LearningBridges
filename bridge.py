@@ -7,8 +7,11 @@ class Message:
 
     def __init__(self, b_id, root, d, port):
         self.bridge_id = b_id
+        # the bridge which it came from
         self.root = root
+        # supposed root
         self.d = d
+        # distance of sending bridge
         self.port = port
 
     def __repr__(self):
@@ -30,8 +33,10 @@ class LAN:
     def __init__(self, name):
         self.name = name
         self.host_list = []
+        # is_dp - designated port
         self.bridge_dict = {}
         # stores messages and forwards to all bridges connected to self except source
+        # sender appends messages to this list
         self.to_forward = []        
     
     def add_bridge(self, bridge_id, is_dp=0):
@@ -44,6 +49,7 @@ class LAN:
         for message in self.to_forward:
             for bridge_id in self.bridge_dict.keys():
                 if bridge_id != message.bridge_id:
+                    # to_return is a dict with keys as receiver
                     to_return[bridge_id].append(copy.copy(message))
                     empty = False
 
@@ -92,6 +98,7 @@ class Bridge:
     # called at each clock tick    
     def time_step(self, t, trace):
         
+        # lan segments connected to bridge - keys, values - list of values to be forwarded
         to_return = {k: [] for k in self.port_dict.keys()}
         #messages to dump on LAN seg,ent
         empty = True
@@ -104,6 +111,7 @@ class Bridge:
             message.d += 1
             # if received message is better than global best, update
             if self.current_overall_best.compare(message, self.closest_to_root_bridge):
+                # update_best also increments d while copying into bridge attributes
                 message.d -= 1
                 self.update_best(message)
                 message.d += 1
@@ -123,7 +131,7 @@ class Bridge:
                 rp_cond = self.root_prediction == cur_best.root and \
                             self.distance_from_root-1 == cur_best.d and \
                             self.closest_to_root_bridge == cur_best.bridge_id
-                # conditions for null port
+                # conditions for null port - REVIEW LATER!!!!
                 np_cond = (self.root_prediction == cur_best.root and \
                             self.distance_from_root-1 == cur_best.d and \
                             self.closest_to_root_bridge < cur_best.bridge_id) or \
@@ -136,7 +144,7 @@ class Bridge:
                 np_cond = False
             
             dp_cond = cur_best is None or cur_best.compare(to_forward, self.id)
-            # DP
+            # DP - root port problems
             if dp_cond:
                 # forward messages only if the configuration was a new global best
                 if new_best:
@@ -208,6 +216,7 @@ class Topology:
         # lan_messages contains all messages which bridges have generated
         stop = True
         for bridge in self.bridge_dict.values():
+            # m is the dict containing LAN as keys and the messages to be dumped as values
             m, empty = bridge.time_step(t, trace)
             lan_messages.append(m)
             if not empty:
